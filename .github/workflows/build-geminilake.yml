@@ -18,15 +18,15 @@ jobs:
 
       - name: Download toolchain
         run: |
-          env_tarball=ds.epyc7002-${{ matrix.version }}.env.txz
-          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/epyc7002/$env_tarball
+          env_tarball=ds.geminilake-${{ matrix.version }}.env.txz
+          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/geminilake/$env_tarball
           mkdir toolchain
           tar xf $env_tarball -C toolchain
 
       - name: Download kernel source
         run: |
-          dev_tarball=ds.epyc7002-${{ matrix.version }}.dev.txz
-          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/epyc7002/$dev_tarball
+          dev_tarball=ds.geminilake-${{ matrix.version }}.dev.txz
+          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/geminilake/$dev_tarball
           mkdir ksrc
           tar xf $dev_tarball -C ksrc
 
@@ -61,12 +61,12 @@ jobs:
 
       - name: Pack modules and firmware
         working-directory: out
-        run: zip -r i915_dsm-${{ matrix.version }}_epyc7002.zip firmware modules
+        run: zip -r i915_dsm-${{ matrix.version }}_geminilake.zip firmware modules
 
       - name: Save to artifacts
         uses: actions/upload-artifact@v3
         with:
-          path: out/i915_dsm-${{ matrix.version }}_epyc7002.zip
+          path: out/i915_dsm-${{ matrix.version }}_geminilake.zip
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
