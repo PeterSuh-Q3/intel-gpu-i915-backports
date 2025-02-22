@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        version: [7.1, 7.2]
+        version: [7.2]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
