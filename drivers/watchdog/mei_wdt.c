@@ -341,7 +341,7 @@ static void mei_wdt_unregister(struct mei_wdt *wdt)
 	mutex_lock(&wdt->reg_lock);
 
 	if (__mei_wdt_is_registered(wdt)) {
-		/* watchdog_unregister_device(&wdt->wdd); */
+		watchdog_unregister_device(&wdt->wdd);
 		watchdog_set_drvdata(&wdt->wdd, NULL);
 		memset(&wdt->wdd, 0, sizeof(wdt->wdd));
 	}
@@ -384,7 +384,7 @@ static int mei_wdt_register(struct mei_wdt *wdt)
 	watchdog_stop_on_reboot(&wdt->wdd);
 	watchdog_stop_on_unregister(&wdt->wdd);
 
-/*	ret = watchdog_register_device(&wdt->wdd); */
+	ret = watchdog_register_device(&wdt->wdd);
 	if (ret)
 		watchdog_set_drvdata(&wdt->wdd, NULL);
 
