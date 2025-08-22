@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         version: [7.2]
-        platform: [epyc7002, geminilakenk, r1000nk, v1000nk]
+        platform: [epyc7002, geminilakenk] #, r1000nk, v1000nk]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
