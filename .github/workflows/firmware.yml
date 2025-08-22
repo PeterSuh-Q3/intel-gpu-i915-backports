@@ -8,11 +8,36 @@ on:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        version: [7.2]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download toolchain
+        run: |
+          env_tarball=ds.epyc7002-${{ matrix.version }}.env.txz
+          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/epyc7002/$env_tarball
+          mkdir toolchain
+          tar xf $env_tarball -C toolchain
+
+      - name: Download kernel source
+        run: |
+          dev_tarball=ds.epyc7002-${{ matrix.version }}.dev.txz
+          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/epyc7002/$dev_tarball
+          mkdir ksrc
+          tar xf $dev_tarball -C ksrc
+
+      - name: Build
+        run: |
+          export BACKPORT_DIR=$PWD
+          export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
+          export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
+          make defconfig-drm
+          make -j$(nproc) modules_copy
+          
       - name: Checkout firmware
         uses: actions/checkout@v4
         with:
@@ -34,7 +59,7 @@ jobs:
           done < <(find out/modules -name \*.ko -exec /sbin/modinfo {} -F firmware \;)
           chmod 644 $DEST/*
 
-      - name: Pack modules and firmware
+      - name: Pack firmware only
         working-directory: out
         run: zip -r i915_dsm_firmware.zip firmware
 
