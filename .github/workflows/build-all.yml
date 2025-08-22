@@ -55,13 +55,15 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: artifacts
+          name: build-artifact-${{ github.run_id }}-${{ github.job }}
+          path: artifacts    
 
       - name: Append tag to filename
         working-directory: artifacts
