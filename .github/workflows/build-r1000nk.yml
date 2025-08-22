@@ -1,4 +1,4 @@
-name: Build i915 for DSM epyc7002
+name: Build i915 for DSM r1000nk
 
 on:
   workflow_dispatch:
@@ -18,15 +18,15 @@ jobs:
 
       - name: Download toolchain
         run: |
-          env_tarball=ds.epyc7002-${{ matrix.version }}.env.txz
-          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/epyc7002/$env_tarball
+          env_tarball=ds.r1000nk-${{ matrix.version }}.env.txz
+          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/r1000nk/$env_tarball
           mkdir toolchain
           tar xf $env_tarball -C toolchain
 
       - name: Download kernel source
         run: |
-          dev_tarball=ds.epyc7002-${{ matrix.version }}.dev.txz
-          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/epyc7002/$dev_tarball
+          dev_tarball=ds.r1000nk-${{ matrix.version }}.dev.txz
+          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/r1000nk/$dev_tarball
           mkdir ksrc
           tar xf $dev_tarball -C ksrc
 
@@ -35,7 +35,7 @@ jobs:
           export BACKPORT_DIR=$PWD
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
-          make defconfig-drm
+          make defconfig-i915
           make -j$(nproc) modules_copy
 
       - name: Checkout firmware
@@ -61,12 +61,12 @@ jobs:
 
       - name: Pack modules and firmware
         working-directory: out
-        run: zip -r i915_dsm-${{ matrix.version }}_epyc7002.zip firmware modules
+        run: zip -r i915_dsm-${{ matrix.version }}_r1000nk.zip firmware modules
 
       - name: Save to artifacts
         uses: actions/upload-artifact@v4
         with:
-          path: out/i915_dsm-${{ matrix.version }}_epyc7002.zip
+          path: out/i915_dsm-${{ matrix.version }}_r1000nk.zip
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
