@@ -21,14 +21,14 @@ jobs:
       - name: Download toolchain
         run: |
           env_tarball=ds.epyc7002-${{ matrix.version }}.env.txz
-          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/epyc7002/$env_tarball
+          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/epyc7002/$env_tarball
           mkdir toolchain
           tar xf $env_tarball -C toolchain
 
       - name: Download kernel source
         run: |
           dev_tarball=ds.epyc7002-${{ matrix.version }}.dev.txz
-          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/epyc7002/$dev_tarball
+          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/epyc7002/$dev_tarball
           mkdir ksrc
           tar xf $dev_tarball -C ksrc
 
