@@ -11,6 +11,30 @@
 #undef CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE
 #endif
 
+#ifdef CONFIG_SYNO_GEMINILAKENK
+// These modules are declared in kernel .config but not actually present on the
+// system. Undef the flags to avoid introducing unnecessary dependencies.
+#undef CONFIG_FB_MODULE
+#undef CONFIG_ACPI_VIDEO_MODULE
+#undef CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE
+#endif
+
+#ifdef CONFIG_SYNO_R1000NK
+// These modules are declared in kernel .config but not actually present on the
+// system. Undef the flags to avoid introducing unnecessary dependencies.
+#undef CONFIG_FB_MODULE
+#undef CONFIG_ACPI_VIDEO_MODULE
+#undef CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE
+#endif
+
+#ifdef CONFIG_SYNO_V1000NK
+// These modules are declared in kernel .config but not actually present on the
+// system. Undef the flags to avoid introducing unnecessary dependencies.
+#undef CONFIG_FB_MODULE
+#undef CONFIG_ACPI_VIDEO_MODULE
+#undef CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE
+#endif
+
 #if LINUX_VERSION_IS_LESS(6,0,0)
 
 #if !((REDHAT_RELEASE_VERSION_IS_LEQ(9,0)) || CUSTOM_KERN_1_RELEASE_VERSION_IS_GEQ(8,6656) || \
