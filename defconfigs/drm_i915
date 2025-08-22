@@ -23,6 +23,3 @@ CPTCFG_DRM_I915=m
 
 # Intel GTT (graphics translation table)
 CPTCFG_INTEL_GTT=m
-
-# TTM memory manager
-CPTCFG_TTM=m
