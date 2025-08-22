@@ -1,6 +1,8 @@
 name: Extract i915 firmware for DSM
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
   push:
     tags:
