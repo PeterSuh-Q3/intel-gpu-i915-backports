@@ -40,12 +40,7 @@ jobs:
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
           make defconfig-drm
           make -j$(nproc) modules_copy
-
-      - name: Prepare artifacts
-        run: |
-          mkdir -p out/artifacts
-          cp .config out/artifacts/config
-          cp modules/*.ko out/artifacts/
+          cp -vf .config modules/
 
       - name: Pack modules and config
         working-directory: out
