@@ -35,33 +35,12 @@ jobs:
           export BACKPORT_DIR=$PWD
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
-          make defconfig-drm
+          make defconfig-i915
           make -j$(nproc) modules_copy
-
-      - name: Checkout firmware
-        uses: actions/checkout@v4
-        with:
-          repository: intel-gpu/intel-gpu-firmware
-          path: intel-gpu-firmware
-
-      - name: Copy necessary firmware
-        run: |
-          SOURCE=intel-gpu-firmware/firmware
-          DEST=out/firmware
-          mkdir -p $DEST
-          while read L; do
-            L=$(basename $L)
-            if [ -e "$SOURCE/$L" ]; then
-              cp "$SOURCE/$L" $DEST
-            else
-              echo "::warning ::Missing $L"
-            fi
-          done < <(find out/modules -name \*.ko -exec /sbin/modinfo {} -F firmware \;)
-          chmod 644 $DEST/*
 
       - name: Pack modules and firmware
         working-directory: out
-        run: zip -r i915_dsm-${{ matrix.version }}_r1000nk.zip firmware modules
+        run: zip -r i915_dsm-${{ matrix.version }}_r1000nk.zip modules
 
       - name: Save to artifacts
         uses: actions/upload-artifact@v4
