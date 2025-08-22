@@ -1,6 +1,8 @@
 name: Build i915 for DSM Platforms
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
   push:
     tags:
