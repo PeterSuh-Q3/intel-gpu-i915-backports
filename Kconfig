@@ -18,6 +18,9 @@ config DII_KERNEL_TAG
 config INTEL_PMT_FORCED
         bool
         option env="INTEL_PMT_FORCED"
+config I915_FABRIC_IAF
+    bool "Build IAF support"
+    depends on MTD
 
 # Packaging hacks
 source "$BACKPORT_DIR/Kconfig.package.hacks"
