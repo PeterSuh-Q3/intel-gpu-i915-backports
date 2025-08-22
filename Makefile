@@ -259,3 +259,5 @@ endif
 
 PHONY += FORCE
 FORCE:
+
+obj-$(CONFIG_I915_FABRIC_IAF) += iaf.o
