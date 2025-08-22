@@ -1136,12 +1136,12 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	ret = i915_ggtt_probe_hw(dev_priv);
 	if (ret)
 		goto err_perf;
-/*	
+	
 #ifdef API_ARG_DRM_DRIVER_REMOVED
 	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, "inteldrmfb");
-#else */
+#else
 	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, dev_priv->drm.driver);
-/* #endif */
+#endif
 	if (ret)
 		goto err_ggtt;
 
