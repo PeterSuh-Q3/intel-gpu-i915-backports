@@ -45,7 +45,7 @@ jobs:
 
       - name: Pack modules and config
         working-directory: out
-        run: zip -r i915_dsm-${{ matrix.version }}_${{ matrix.platform }}.zip artifacts
+        run: zip -r i915_dsm-${{ matrix.version }}_${{ matrix.platform }}.zip modules
 
       - name: Save to artifacts
         uses: actions/upload-artifact@v4
