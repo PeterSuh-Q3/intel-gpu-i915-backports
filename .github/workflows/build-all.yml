@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         version: [7.2]
-        platform: [r1000nk, v1000nk] #[epyc7002, geminilakenk, r1000nk, v1000nk]
+        platform: [r1000nk, v1000nk]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,13 +38,18 @@ jobs:
           export BACKPORT_DIR=$PWD
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
-          ls -l $KLIB_BUIL
           make defconfig-drm
           make -j$(nproc) modules_copy
 
-      - name: Pack modules
+      - name: Prepare artifacts
+        run: |
+          mkdir -p out/artifacts
+          cp .config out/artifacts/config
+          cp modules/*.ko out/artifacts/
+
+      - name: Pack modules and config
         working-directory: out
-        run: zip -r i915_dsm-${{ matrix.version }}_${{ matrix.platform }}.zip modules
+        run: zip -r i915_dsm-${{ matrix.version }}_${{ matrix.platform }}.zip artifacts
 
       - name: Save to artifacts
         uses: actions/upload-artifact@v4
@@ -69,7 +74,7 @@ jobs:
         working-directory: artifacts
         run: |
           find . -name "i915_dsm-*.zip" -print0 | while read -d $'\0' f; do
-            mv $f ${f%.*}_${GITHUB_REF##*/}.zip
+            mv "$f" "${f%.zip}_${GITHUB_REF##*/}.zip"
           done
 
       - name: Release
