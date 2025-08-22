@@ -108,7 +108,7 @@ int drm_hdmi_sink_max_frl_rate(struct drm_connector *connector);
 int drm_hdmi_sink_dsc_max_frl_rate(struct drm_connector *connector);
 #endif
 
-/* #ifdef BPM_DRM_DP_DSC_SINK_SUPPORTS_FORMAT_NOT_PRESENT */
+#ifdef BPM_DRM_DP_DSC_SINK_SUPPORTS_FORMAT_NOT_PRESENT
 /**
  * drm_dp_dsc_sink_supports_format() - check if sink supports DSC with given output format
  * @dsc_dpcd : DSC-capability DPCDs of the sink
