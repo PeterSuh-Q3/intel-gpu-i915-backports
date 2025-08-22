@@ -35,7 +35,7 @@ jobs:
           export BACKPORT_DIR=$PWD
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
-          make defconfig-i915_only
+          make defconfig-drm_i915
           make -j$(nproc) modules_copy
 
       - name: Pack modules and firmware
