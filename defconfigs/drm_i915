@@ -1,0 +1,24 @@
+# DMABUF core
+CPTCFG_BUILD_DMABUF_I915_MEI=y
+
+# DRM core
+CPTCFG_DRM=m
+
+# DRM sub-modules
+CPTCFG_DRM_BUDDY=m
+CPTCFG_DRM_DISPLAY_HELPER=m
+CPTCFG_DRM_KMS_HELPER=m
+CPTCFG_DRM_MIPI_DSI=m
+CPTCFG_DRM_PANEL_ORIENTATION_QUIRKS=m
+
+# i915 compatibility shim
+CPTCFG_I915_COMPAT=m
+
+# Intel i915 driver
+CPTCFG_DRM_I915=m
+
+# Intel GTT (graphics translation table)
+CPTCFG_INTEL_GTT=m
+
+# TTM memory manager
+CPTCFG_TTM=m
