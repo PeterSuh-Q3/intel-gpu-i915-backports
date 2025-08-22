@@ -61,4 +61,6 @@ obj-$(CPTCFG_MFD_INTEL_PMT) += drivers/mfd/
 ifeq (y,$(filter y,$(CPTCFG_ONLY_I915) $(CPTCFG_BUILD_DMABUF_I915_MEI)))
 obj-y += drivers/misc/mei/
 obj-y += drivers/watchdog/
+
+obj-$(CONFIG_I915_FABRIC_IAF) += iaf.o
 endif
