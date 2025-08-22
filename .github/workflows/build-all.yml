@@ -22,14 +22,14 @@ jobs:
       - name: Download toolchain
         run: |
           env_tarball=ds.${{ matrix.platform }}-${{ matrix.version }}.env.txz
-          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$env_tarball
+          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$env_tarball
           mkdir toolchain
           tar xf $env_tarball -C toolchain
 
       - name: Download kernel source
         run: |
           dev_tarball=ds.${{ matrix.platform }}-${{ matrix.version }}.dev.txz
-          wget https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$dev_tarball
+          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$dev_tarball
           mkdir ksrc
           tar xf $dev_tarball -C ksrc
 
