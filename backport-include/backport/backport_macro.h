@@ -2,32 +2,8 @@
 #define BP_LINUX_BACKPORT_MACRO_H
 #include <linux/version.h>
 #include <backport/autoconf.h>
-
-#ifdef CONFIG_SYNO_EPYC7002
-// These modules are declared in kernel .config but not actually present on the
-// system. Undef the flags to avoid introducing unnecessary dependencies.
-#undef CONFIG_FB_MODULE
-#undef CONFIG_ACPI_VIDEO_MODULE
-#undef CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE
-#endif
-
-#ifdef CONFIG_SYNO_GEMINILAKENK
-// These modules are declared in kernel .config but not actually present on the
-// system. Undef the flags to avoid introducing unnecessary dependencies.
-#undef CONFIG_FB_MODULE
-#undef CONFIG_ACPI_VIDEO_MODULE
-#undef CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE
-#endif
-
-#ifdef CONFIG_SYNO_R1000NK
-// These modules are declared in kernel .config but not actually present on the
-// system. Undef the flags to avoid introducing unnecessary dependencies.
-#undef CONFIG_FB_MODULE
-#undef CONFIG_ACPI_VIDEO_MODULE
-#undef CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE
-#endif
-
-#ifdef CONFIG_SYNO_V1000NK
+ 
+#ifdef CONFIG_SYNO_X64
 // These modules are declared in kernel .config but not actually present on the
 // system. Undef the flags to avoid introducing unnecessary dependencies.
 #undef CONFIG_FB_MODULE
