@@ -51,15 +51,19 @@ jobs:
           export BACKPORT_DIR=$PWD
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
-      
+
+          make defconfig-drm                
+          
           # ── r1000nk / v1000nk: drm_i915 대신사용 ──────────
           if [[ "${{ matrix.platform }}" == "r1000nk" || "${{ matrix.platform }}" == "v1000nk" ]]; then
-            make defconfig-drm_i915          
-          else
-            make defconfig-drm          
+            # r1000nk: DRM/i915 항목 강제 주입
+            bash patch_config.sh
+            
+            # autoconf.h 재생성 (이 단계가 없으면 패치가 헤더에 반영 안 됨)
+            make olddefconfig
           fi
           # ──────────────────────────────────────────────────────────────
-
+    
           make -j$(nproc) modules_copy
           mkdir -p out/modules
           cp -vf .config out/modules/
