@@ -51,31 +51,36 @@ jobs:
           export BACKPORT_DIR=$PWD
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
-
+      
+          # ── r1000nk / v1000nk: DRM Kconfig depends 조건 제거 ──────────
+          # conf 바이너리가 .config 재작성 시 depends 조건을 체크하므로
+          # 조건 자체를 제거해야 make modules_copy 이후에도 CPTCFG_DRM=m 유지됨
+          if [[ "${{ matrix.platform }}" == "r1000nk" || "${{ matrix.platform }}" == "v1000nk" ]]; then
+            echo "=== Patching Kconfig for ${{ matrix.platform }} ==="
+      
+            # DRM Kconfig에서 BACKPORT_KERNEL_HAS_DRM depends 조건 제거
+            find . -name "Kconfig" | xargs grep -l "BACKPORT_KERNEL_HAS_DRM\|KERNEL_HAS_DRM" 2>/dev/null
+      
+            # drivers/gpu/drm/Kconfig 패치
+            for kconfig in drivers/gpu/drm/Kconfig drivers/gpu/drm/i915/Kconfig kconf/Kconfig; do
+              if [[ -f "$kconfig" ]]; then
+                echo "  Patching: $kconfig"
+                sed -i '/depends on.*BACKPORT_KERNEL_HAS_DRM/d' "$kconfig"
+                sed -i '/depends on.*KERNEL_HAS_DRM/d' "$kconfig"
+              fi
+            done
+      
+            # [DEBUG] 패치 결과 확인
+            echo "=== Kconfig DRM depends lines remaining ==="
+            grep -rn "KERNEL_HAS_DRM" drivers/gpu/drm/ kconf/ 2>/dev/null || echo "  [OK] depends 조건 모두 제거됨"
+          fi
+          # ──────────────────────────────────────────────────────────────
+      
           make defconfig-drm
-
-          # ── [DEBUG] defconfig 직후 .config 상태 스냅샷 ──────────────
-          echo "=== [DEBUG] .config after make defconfig-drm (DRM/I915 items) ==="
-          grep -E "CPTCFG_DRM|CPTCFG_I915|CPTCFG_INTEL" .config || echo "[INFO] No DRM CPTCFG found"
-
-          # ── patch_config.sh 실행 ──────────────────────────────────────
-          bash patch_config.sh
-
-          # ── [DEBUG] 패치 직후 .config 상태 스냅샷 ───────────────────
-          echo ""
-          echo "=== [DEBUG] .config after patch_config.sh (DRM/I915 items) ==="
-          grep -E "CPTCFG_DRM|CPTCFG_I915|CPTCFG_INTEL" .config || echo "[INFO] No DRM CPTCFG found"
-
           make -j$(nproc) modules_copy
-
-          # ── [DEBUG] 빌드 결과 .ko 목록 확인 ─────────────────────────
-          echo ""
-          echo "=== [DEBUG] Built .ko files ==="
-          find . -name "*.ko" | grep -v "\.tmp_" | sort
-
           mkdir -p out/modules
           cp -vf .config out/modules/
-
+    
       - name: Pack modules and config
         working-directory: out
         run: zip -r i915_dsm-${{ matrix.version }}_${{ matrix.platform }}.zip modules
