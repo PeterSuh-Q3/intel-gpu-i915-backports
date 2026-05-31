@@ -52,31 +52,14 @@ jobs:
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
       
-          # ── r1000nk / v1000nk: DRM Kconfig depends 조건 제거 ──────────
-          # conf 바이너리가 .config 재작성 시 depends 조건을 체크하므로
-          # 조건 자체를 제거해야 make modules_copy 이후에도 CPTCFG_DRM=m 유지됨
+          # ── r1000nk / v1000nk: drm_i915 대신사용 ──────────
           if [[ "${{ matrix.platform }}" == "r1000nk" || "${{ matrix.platform }}" == "v1000nk" ]]; then
-            echo "=== Patching Kconfig for ${{ matrix.platform }} ==="
-
-            echo "=== Kconfig files referencing DRM dependency symbols ==="
-            find . -name "Kconfig" -exec grep -lE "BACKPORT_KERNEL_HAS_DRM|KERNEL_HAS_DRM" {} + 2>/dev/null || \
-              echo "  [INFO] No matching Kconfig entries found"
-
-            for kconfig in drivers/gpu/drm/Kconfig drivers/gpu/drm/i915/Kconfig kconf/Kconfig; do
-              if [[ -f "$kconfig" ]]; then
-                echo "  Patching: $kconfig"
-                sed -i '/depends on.*BACKPORT_KERNEL_HAS_DRM/d' "$kconfig"
-                sed -i '/depends on.*KERNEL_HAS_DRM/d' "$kconfig"
-              fi
-            done
-
-            echo "=== Kconfig DRM depends lines remaining ==="
-            grep -rnE "BACKPORT_KERNEL_HAS_DRM|KERNEL_HAS_DRM" drivers/gpu/drm/ kconf/ 2>/dev/null || \
-              echo "  [OK] depends 조건 모두 제거됨"
+            make defconfig-drm_i915          
+          else
+            make defconfig-drm          
           fi
           # ──────────────────────────────────────────────────────────────
-      
-          make defconfig-drm
+
           make -j$(nproc) modules_copy
           mkdir -p out/modules
           cp -vf .config out/modules/
