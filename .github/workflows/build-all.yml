@@ -33,17 +33,46 @@ jobs:
           mkdir ksrc
           tar xf $dev_tarball -C ksrc
 
+      # ── [DEBUG] 커널 .config 에서 DRM 관련 심볼 확인 ──────────────────
+      - name: "[DEBUG] Host kernel CONFIG_DRM check"
+        run: |
+          KCONFIG=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build/.config
+          echo "=== Host kernel config path ==="
+          ls -la "$KCONFIG" || echo "[WARN] .config not found at expected path"
+
+          echo ""
+          echo "=== DRM-related symbols in host kernel ==="
+          if [[ -f "$KCONFIG" ]]; then
+            grep -E "CONFIG_DRM|CONFIG_AGP|CONFIG_FB" "$KCONFIG" || echo "[INFO] No DRM symbols found"
+          fi
+
       - name: Build
         run: |
           export BACKPORT_DIR=$PWD
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
+
           make defconfig-drm
 
-          # r1000nk/v1000nk 전용: .config 강제 패치
+          # ── [DEBUG] defconfig 직후 .config 상태 스냅샷 ──────────────
+          echo "=== [DEBUG] .config after make defconfig-drm (DRM/I915 items) ==="
+          grep -E "CPTCFG_DRM|CPTCFG_I915|CPTCFG_INTEL" .config || echo "[INFO] No DRM CPTCFG found"
+
+          # ── patch_config.sh 실행 ──────────────────────────────────────
           bash patch_config.sh
 
+          # ── [DEBUG] 패치 직후 .config 상태 스냅샷 ───────────────────
+          echo ""
+          echo "=== [DEBUG] .config after patch_config.sh (DRM/I915 items) ==="
+          grep -E "CPTCFG_DRM|CPTCFG_I915|CPTCFG_INTEL" .config || echo "[INFO] No DRM CPTCFG found"
+
           make -j$(nproc) modules_copy
+
+          # ── [DEBUG] 빌드 결과 .ko 목록 확인 ─────────────────────────
+          echo ""
+          echo "=== [DEBUG] Built .ko files ==="
+          find . -name "*.ko" | grep -v "\.tmp_" | sort
+
           mkdir -p out/modules
           cp -vf .config out/modules/
 
