@@ -57,11 +57,11 @@ jobs:
           # 조건 자체를 제거해야 make modules_copy 이후에도 CPTCFG_DRM=m 유지됨
           if [[ "${{ matrix.platform }}" == "r1000nk" || "${{ matrix.platform }}" == "v1000nk" ]]; then
             echo "=== Patching Kconfig for ${{ matrix.platform }} ==="
-      
-            # DRM Kconfig에서 BACKPORT_KERNEL_HAS_DRM depends 조건 제거
-            find . -name "Kconfig" | xargs grep -l "BACKPORT_KERNEL_HAS_DRM\|KERNEL_HAS_DRM" 2>/dev/null
-      
-            # drivers/gpu/drm/Kconfig 패치
+
+            echo "=== Kconfig files referencing DRM dependency symbols ==="
+            find . -name "Kconfig" -exec grep -lE "BACKPORT_KERNEL_HAS_DRM|KERNEL_HAS_DRM" {} + 2>/dev/null || \
+              echo "  [INFO] No matching Kconfig entries found"
+
             for kconfig in drivers/gpu/drm/Kconfig drivers/gpu/drm/i915/Kconfig kconf/Kconfig; do
               if [[ -f "$kconfig" ]]; then
                 echo "  Patching: $kconfig"
@@ -69,10 +69,10 @@ jobs:
                 sed -i '/depends on.*KERNEL_HAS_DRM/d' "$kconfig"
               fi
             done
-      
-            # [DEBUG] 패치 결과 확인
+
             echo "=== Kconfig DRM depends lines remaining ==="
-            grep -rn "KERNEL_HAS_DRM" drivers/gpu/drm/ kconf/ 2>/dev/null || echo "  [OK] depends 조건 모두 제거됨"
+            grep -rnE "BACKPORT_KERNEL_HAS_DRM|KERNEL_HAS_DRM" drivers/gpu/drm/ kconf/ 2>/dev/null || \
+              echo "  [OK] depends 조건 모두 제거됨"
           fi
           # ──────────────────────────────────────────────────────────────
       
