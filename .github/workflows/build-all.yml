@@ -60,7 +60,9 @@ jobs:
             bash patch_config.sh
             
             # autoconf.h 재생성 (이 단계가 없으면 패치가 헤더에 반영 안 됨)
-            make olddefconfig
+            # olddefconfig 대신 autoconf.h만 직접 재생성
+            # (olddefconfig는 Kconfig depends 재평가로 패치를 되돌림)
+            make backport-include/backport/autoconf.h
           fi
           # ──────────────────────────────────────────────────────────────
     
