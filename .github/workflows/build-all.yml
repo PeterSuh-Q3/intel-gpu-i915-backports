@@ -40,23 +40,8 @@ jobs:
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
           make defconfig-drm
 
-          grep -E \
-            "CPTCFG_BUILD_DMABUF_I915_MEI|CPTCFG_SYNC_FILE|CPTCFG_SW_SYNC|\
-          CPTCFG_DMABUF_MOVE_NOTIFY|CPTCFG_DMABUF_HEAPS|\
-          CPTCFG_DRM\b|CPTCFG_DRM_BUDDY|CPTCFG_DRM_DISPLAY_HELPER|\
-          CPTCFG_DRM_KMS_HELPER|CPTCFG_DRM_MIPI_DSI|\
-          CPTCFG_DRM_PANEL_ORIENTATION_QUIRKS|\
-          CPTCFG_I915_COMPAT|CPTCFG_DRM_I915|CPTCFG_INTEL_GTT" \
-            .config
-  
-          sed -i 's/# CPTCFG_DRM is not set/CPTCFG_DRM=m/' .config
-          sed -i 's/# CPTCFG_DRM_I915 is not set/CPTCFG_DRM_I915=m/' .config
-          sed -i 's/# CPTCFG_DRM_KMS_HELPER is not set/CPTCFG_DRM_KMS_HELPER=m/' .config
-          sed -i 's/# CPTCFG_DRM_BUDDY is not set/CPTCFG_DRM_BUDDY=m/' .config
-          sed -i 's/# CPTCFG_DRM_DISPLAY_HELPER is not set/CPTCFG_DRM_DISPLAY_HELPER=m/' .config
-          sed -i 's/# CPTCFG_DRM_MIPI_DSI is not set/CPTCFG_DRM_MIPI_DSI=m/' .config
-          sed -i 's/# CPTCFG_DRM_PANEL_ORIENTATION_QUIRKS is not set/CPTCFG_DRM_PANEL_ORIENTATION_QUIRKS=m/' .config
-          sed -i 's/# CPTCFG_INTEL_GTT is not set/CPTCFG_INTEL_GTT=m/' .config          
+          # r1000nk/v1000nk 전용: .config 강제 패치
+          bash patch_config.sh
 
           make -j$(nproc) modules_copy
           mkdir -p out/modules
