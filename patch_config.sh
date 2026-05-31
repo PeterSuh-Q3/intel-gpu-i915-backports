@@ -1,12 +1,12 @@
 #!/bin/bash
 # patch_config.sh
-# defconfigs/drm_i915 의 항목을 .config 에 강제 적용
+# defconfigs/drm 의 항목을 .config 에 강제 적용
 # - 값이 다르면 덮어쓰기
 # - "# CPTCFG_xxx is not set" 형태면 제거 후 추가
 # - 아예 없는 항목이면 맨 끝에 추가
 
 CONFIG_FILE=".config"
-DEFCONFIG_FILE="defconfigs/drm_i915"
+DEFCONFIG_FILE="defconfigs/drm"
 
 echo "========================================"
 echo " Before: 대상 항목 현재 상태"
