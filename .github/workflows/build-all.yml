@@ -38,11 +38,11 @@ jobs:
           export BACKPORT_DIR=$PWD
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
+          make defconfig-drm
 
-          # drm 항목을 KCONFIG_ALLCONFIG 로 보호
-          cat defconfigs/drm > /tmp/force.config
-          KCONFIG_ALLCONFIG=/tmp/force.config make defconfig-drm
-          
+          # r1000nk/v1000nk 전용: .config 강제 패치
+          bash patch_config.sh
+
           make -j$(nproc) modules_copy
           mkdir -p out/modules
           cp -vf .config out/modules/
