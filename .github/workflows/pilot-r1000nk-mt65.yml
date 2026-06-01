@@ -28,21 +28,13 @@ jobs:
             grep -q "^# ${s} is not set" "$HOSTCFG" && sed -i "s/^# ${s} is not set/${s}=y/" "$HOSTCFG" || ( grep -q "^${s}=" "$HOSTCFG" || echo "${s}=y" >> "$HOSTCFG" )
           done
           echo "=== host CONFIG_HDMI 상태 ==="; grep -E "^CONFIG_HDMI|^# CONFIG_HDMI" "$HOSTCFG" || echo "(CONFIG_HDMI 부재 → hdmi_5_10.o 편입 기대)"
-          # 헤드리스(r1000nk/v1000nk): backlight + acpi_video 비활성 → i915 의존 제거(RR 방식)
-          # (1) i915 Kconfig 의 'select BACKLIGHT_CLASS_DEVICE if ACPI' 제거(olddefconfig 재활성 방지)
-          sed -i '/select BACKLIGHT_CLASS_DEVICE if ACPI/d' drivers/gpu/drm/i915/Kconfig
           make defconfig-drm
-          echo "[OFF] backlight/acpi_video 비활성"
-          sed -i 's/^CPTCFG_BACKLIGHT_CLASS_DEVICE=.*/# CPTCFG_BACKLIGHT_CLASS_DEVICE is not set/' .config
-          # (2) host autoconf 의 CONFIG_ACPI_VIDEO(_MODULE) 제거 → acpi/video.h stub 화
-          for f in "$KLIB_BUILD/.config" "$KLIB_BUILD/include/config/auto.conf"; do
-            [ -f "$f" ] && sed -i -E '/^CONFIG_ACPI_VIDEO(=|_MODULE=)/d' "$f"
-          done
-          AC="$KLIB_BUILD/include/generated/autoconf.h"
-          [ -f "$AC" ] && { echo "[autoconf 전] $(grep -c ACPI_VIDEO "$AC")"; sed -i -E '/#define CONFIG_ACPI_VIDEO(_MODULE)? /d' "$AC"; echo "[autoconf 후] $(grep -c ACPI_VIDEO "$AC")"; }
-          make olddefconfig
-          echo "[chk] $(grep -E 'CPTCFG_BACKLIGHT_CLASS_DEVICE' .config || echo 'backlight off')"
-          make -j$(nproc)
+          # 헤드리스(r1000nk/v1000nk): backlight + acpi_video 의존 제거(RR 방식).
+          # config 가 host 동적노출이라 .config off 가 안 먹힘 → 컴파일 단계에서 매크로 직접 해제.
+          # i915/drm_dp_helper 의 IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)/(CONFIG_ACPI_VIDEO) → 거짓.
+          KOFF="-UCONFIG_BACKLIGHT_CLASS_DEVICE -UCONFIG_BACKLIGHT_CLASS_DEVICE_MODULE -UCONFIG_ACPI_VIDEO -UCONFIG_ACPI_VIDEO_MODULE"
+          echo "[OFF] KCPPFLAGS=$KOFF"
+          make -j$(nproc) KCPPFLAGS="$KOFF"
           mkdir -p out/modules
           make -C $KLIB_BUILD M=$PWD INSTALL_MOD_PATH=$PWD/out/im CONFIG_MODULE_SIG_ALL= _emodinst_
           find $PWD/out/im -name '*.ko' -exec mv {} out/modules \;
