@@ -119,7 +119,7 @@ jobs:
   # ── 빌드 산출물을 비공개 repo mshell-modules 의 thirdparty/ 로 복사·커밋 ──
   copy-to-mshell:
     needs: build
-    if: ${{ always() }}
+    if: ${{ needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout mshell-modules (private)
