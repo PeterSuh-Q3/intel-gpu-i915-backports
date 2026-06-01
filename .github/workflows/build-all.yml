@@ -86,6 +86,7 @@ jobs:
                 echo "  [OK]      $(grep "^${s}=" "$HOSTCFG")"
               fi
             done
+            export KBUILD_MODPOST_WARN=1   # i2c_bit_algo 등 런타임 제공 심볼을 경고 처리
           fi
           # ──────────────────────────────────────────────────────────────
 
