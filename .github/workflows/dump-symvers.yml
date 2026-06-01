@@ -1,0 +1,33 @@
+name: "[util] dump host Module.symvers (geminilakenk 7.3)"
+
+# 빌드 없이 DSM 커널소스만 받아 host Module.symvers 를 아티팩트로 추출.
+# 로컬에서 파일럿 .ko export 심볼과 대조하여 중복 심볼 출처(vmlinux 빌트인 vs stock 모듈) 판별.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download kernel source (geminilakenk 7.3)
+        run: |
+          dev_tarball=ds.geminilakenk-7.3.dev.txz
+          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/7.3/geminilakenk/$dev_tarball
+          mkdir ksrc
+          tar xf $dev_tarball -C ksrc
+
+      - name: Extract Module.symvers
+        run: |
+          SYMV=ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-7.3/build/Module.symvers
+          mkdir -p out
+          cp "$SYMV" out/Module.symvers
+          echo "lines: $(wc -l < out/Module.symvers)"
+          echo "=== module_path 컬럼 분포(상위) ==="
+          awk '{print $3}' out/Module.symvers | sort | uniq -c | sort -rn | head -20
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-symvers-geminilakenk-7.3
+          path: out/Module.symvers
