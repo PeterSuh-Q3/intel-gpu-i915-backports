@@ -57,23 +57,18 @@ jobs:
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
           export KBUILD_MODPOST_WARN=1   # 런타임 제공 심볼(i2c_bit_algo 등) 경고 처리
 
-          # 9개 세트와 동일하게 defconfig-drm 으로 구성(MEI/PMT 등은 꺼진 상태 유지)
+          # geminilakenk: dma_fence_signaled tracepoint export 제거 (커널 빌트인 dma-buf 충돌 회피).
+          # dmabuf.ko 는 그대로 빌드하되 해당 tracepoint EXPORT 만 제거 → __ksymtab 미등록 → duplicate symbol 회피.
+          echo "[PATCH] drop EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled)"
+          sed -i '/^EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled);/d' drivers/dma-buf/dma-fence.c
+          grep -q "^EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled);" drivers/dma-buf/dma-fence.c \
+            && { echo "[WARN] 제거 실패"; exit 1; } || echo "[OK] 제거됨"
+
+          # 9개 세트와 동일하게 defconfig-drm 으로 구성
           make defconfig-drm
 
-          # geminilakenk 만: dmabuf.ko 제외.
-          # dmabuf.o 빌드 트리거는 choice(BUILD_DMABUF_I915_MEI | ONLY_DMABUF | ONLY_I915).
-          # BUILD_DMABUF_I915_MEI=y → ONLY_I915=y 로 전환하면 dmabuf 미빌드 + i915 는 커널 빌트인 dma-buf 사용.
-          echo "[INJECT] dmabuf 제외: BUILD_DMABUF_I915_MEI → ONLY_I915"
-          sed -i 's/^CPTCFG_BUILD_DMABUF_I915_MEI=y/# CPTCFG_BUILD_DMABUF_I915_MEI is not set/' .config
-          if grep -q '^CPTCFG_ONLY_I915' .config; then
-            sed -i 's/^# CPTCFG_ONLY_I915 is not set/CPTCFG_ONLY_I915=y/; s/^CPTCFG_ONLY_I915=.*/CPTCFG_ONLY_I915=y/' .config
-          else
-            echo 'CPTCFG_ONLY_I915=y' >> .config
-          fi
-          make olddefconfig   # choice 정합화
-
-          echo "=== CPTCFG key switches after inject ==="
-          grep -E "^CPTCFG_(ONLY_I915|ONLY_DMABUF|BUILD_DMABUF_I915_MEI|DRM|DRM_I915|INTEL_GTT|I915_NO_DRM|INTEL_MEI|INTEL_PMT)" .config \
+          echo "=== CPTCFG key switches ==="
+          grep -E "^CPTCFG_(ONLY_I915|ONLY_DMABUF|BUILD_DMABUF_I915_MEI|DRM=|DRM_I915=|INTEL_GTT)" .config \
             || echo "[WARN] expected CPTCFG switches not found"
 
           make -j$(nproc) modules_copy
@@ -82,6 +77,13 @@ jobs:
 
           echo "=== built .ko list ==="
           ls -la out/modules/*.ko || echo "[WARN] no .ko produced"
+
+          echo "=== dmabuf.ko 충돌 심볼 export 여부 (없어야 정상) ==="
+          if nm out/modules/dmabuf.ko 2>/dev/null | grep -E "__ksymtab_(__SCK__tp_func_|__SCT__tp_func_|__traceiter_|__tracepoint_)?dma_fence_signaled"; then
+            echo "[FAIL] dma_fence_signaled tracepoint 가 여전히 export 됨"
+          else
+            echo "[OK] dma_fence_signaled tracepoint export 제거 확인 — 커널 빌트인과 충돌 없음"
+          fi
 
       - name: Pack modules and config
         working-directory: out

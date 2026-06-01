@@ -90,6 +90,21 @@ jobs:
             export KBUILD_MODPOST_WARN=1   # i2c_bit_algo 등 런타임 제공 심볼 경고 처리
           fi
 
+          # ── geminilakenk: dma_fence_signaled tracepoint export 제거 ──
+          # geminilakenk DSM 커널은 dma-buf 빌트인 → 해당 tracepoint 심볼을 커널이 이미 export.
+          # backport dmabuf.ko 가 같은 tracepoint 를 export 하면 duplicate symbol → i915 적재 실패.
+          # CREATE_TRACE_POINTS 정의는 유지하되 EXPORT 만 제거하여 충돌 회피.
+          # epyc7002/r1000nk/v1000nk 는 dma-buf absent 라 커널이 제공 안 하므로 제거 금지.
+          if [[ "${{ matrix.platform }}" == "geminilakenk" ]]; then
+            echo "[PATCH] geminilakenk: drop EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled)"
+            sed -i '/^EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled);/d' drivers/dma-buf/dma-fence.c
+            if grep -q "^EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled);" drivers/dma-buf/dma-fence.c; then
+              echo "[WARN] 제거 실패 — 라인 패턴 확인 필요"; exit 1
+            else
+              echo "[OK] EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled) 제거됨"
+            fi
+          fi
+
           make defconfig-drm
 
           echo "=== CPTCFG_DRM* after defconfig-drm ==="
