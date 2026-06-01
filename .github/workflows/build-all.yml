@@ -33,7 +33,7 @@ jobs:
           mkdir ksrc
           tar xf $dev_tarball -C ksrc
 
-      # ── [DEBUG] 커널 .config 에서 DRM 관련 심볼 확인 ──────────────────
+      # ── [DEBUG] Check DRM-related symbols in kernel .config ──────────────────
       - name: "[DEBUG] Host kernel CONFIG_DRM check"
         run: |
           KCONFIG=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build/.config
@@ -48,8 +48,8 @@ jobs:
 
           echo ""
           echo "=== backport DRM/i915 dependency symbols in host kernel ==="
-          # CPTCFG_DRM / CPTCFG_DRM_I915 가 Kconfig depends 로 요구하는 host 심볼.
-          # 누락(# ... is not set)이면 CPTCFG_DRM_I915 가 비가시화되어 i915 미빌드.
+          # Host symbols required by CPTCFG_DRM / CPTCFG_DRM_I915 via Kconfig depends.
+          # If missing (# ... is not set), CPTCFG_DRM_I915 becomes invisible and i915 is not built.
           if [[ -f "$KCONFIG" ]]; then
             for s in CONFIG_I2C CONFIG_I2C_ALGOBIT CONFIG_DMA_SHARED_BUFFER \
                      CONFIG_FB_CMDLINE CONFIG_INTERVAL_TREE CONFIG_RELAY \
@@ -64,12 +64,20 @@ jobs:
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
 
-          # ── r1000nk / v1000nk: host kernel .config 에 backport DRM/i915 의존 심볼 주입 ──
+          # ── r1000nk / v1000nk: Injecting backport DRM/i915 dependency symbols into host kernel .config ──
+          
+          # Root Cause: patch_config.sh fixes the backport .config, but the visibility of CPTCFG_DRM_I915
+          # is determined by the depends symbols in the host kernel .config (KLIB_BUILD/.config).
+          # If missing in the host, make's kconfig resynchronization makes CPTCFG_DRM_I915 invisible →
+          # i915 not built (only dmabuf/compat created). epyc7002/geminilakenk already exists in the host.
+          # → Inject dependency symbols into the host .config before running defconfig-drm.          
+          
           # 근본원인: patch_config.sh 는 backport .config 를 고치지만, CPTCFG_DRM_I915 의
           # 가시성은 host kernel .config(KLIB_BUILD/.config) 의 depends 심볼이 결정한다.
           # host 에 누락되면 make 의 kconfig 재동기화가 CPTCFG_DRM_I915 를 비가시화 →
           # i915 미빌드(dmabuf/compat 만 생성). epyc7002/geminilakenk host 엔 이미 존재.
           # → defconfig-drm 실행 전에 host .config 에 의존 심볼을 주입한다.
+          
           if [[ "${{ matrix.platform }}" == "r1000nk" || "${{ matrix.platform }}" == "v1000nk" ]]; then
             HOSTCFG="$KLIB_BUILD/.config"
             echo "[INJECT] backport DRM/i915 deps into host config: $HOSTCFG"
@@ -86,13 +94,13 @@ jobs:
                 echo "  [OK]      $(grep "^${s}=" "$HOSTCFG")"
               fi
             done
-            export KBUILD_MODPOST_WARN=1   # i2c_bit_algo 등 런타임 제공 심볼을 경고 처리
+            export KBUILD_MODPOST_WARN=1   # Warning handling for runtime-provided symbols such as i2c_bit_algo
           fi
           # ──────────────────────────────────────────────────────────────
 
           make defconfig-drm
 
-          # [VERIFY] defconfig 결과에 i915/DRM 활성 여부 (epyc 와 동일해야 정상)
+          # [VERIFY] Whether i915/DRM is enabled in the defconfig result (must be the same as epyc7002 for normal)
           echo "=== CPTCFG_DRM* after defconfig-drm ==="
           grep -E "^CPTCFG_(DRM|DRM_I915|INTEL_GTT|DRM_KMS_HELPER|DRM_MIPI_DSI)=" .config \
             || echo "[WARN] CPTCFG_DRM* not enabled — i915 will be skipped"
