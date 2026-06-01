@@ -134,6 +134,19 @@ jobs:
           grep -E "^CPTCFG_(DRM|DRM_I915|INTEL_GTT|DRM_KMS_HELPER|DRM_MIPI_DSI|DRM_TTM|DRM_BUDDY)=" .config \
             || echo "[WARN] CPTCFG_DRM* not enabled — i915 will be skipped"
 
+          # ── 헤드리스(epyc7002/r1000nk/v1000nk): backlight + acpi_video 의존 제거 ──
+          # 이들 커널은 DRM/디스플레이 미사용(VAAPI 트랜스코딩 전용). i915 의 backlight/acpi_video
+          # 의존은 stock backlight.ko/video.ko 를 요구하는데 미설치 → 적재 실패.
+          # host autoconf.h 에서 매크로 제거 → IS_ENABLED 가드 거짓 → 해당 코드 제외(RR 방식).
+          # geminilakenk(실 디스플레이)는 ON 유지 → backlight.ko 동반 필요(thirdparty 보존).
+          if [[ "${{ matrix.platform }}" != "geminilakenk" ]]; then
+            AC="$KLIB_BUILD/include/generated/autoconf.h"
+            if [ -f "$AC" ]; then
+              echo "[OFF] $(grep -cE 'CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)' "$AC" || true) → backlight/acpi_video 제거"
+              sed -i -E '/#define CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)(_MODULE)? /d' "$AC"
+            fi
+          fi
+
           # MT_65 표준 빌드(modules_copy 타겟 없음). 배포용이므로 INSTALL_MOD_STRIP=1 로 strip.
           make -j$(nproc)
           MODULES_INTERMEDIATES=$PWD/out/intermediates
