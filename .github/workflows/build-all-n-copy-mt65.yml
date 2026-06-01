@@ -113,12 +113,20 @@ jobs:
           grep -E "^CPTCFG_(DRM|DRM_I915|INTEL_GTT|DRM_KMS_HELPER|DRM_MIPI_DSI|DRM_TTM|DRM_BUDDY)=" .config \
             || echo "[WARN] CPTCFG_DRM* not enabled — i915 will be skipped"
 
-          make -j$(nproc) modules_copy
-          mkdir -p out/modules
+          # MT_65 표준 빌드(modules_copy 타겟 없음). 배포용이므로 INSTALL_MOD_STRIP=1 로 strip.
+          make -j$(nproc)
+          MODULES_INTERMEDIATES=$PWD/out/intermediates
+          OUT_MODULES=$PWD/out/modules
+          mkdir -p $OUT_MODULES
+          make -C $KLIB_BUILD M=$PWD \
+            INSTALL_MOD_PATH=$MODULES_INTERMEDIATES \
+            INSTALL_MOD_STRIP=1 CONFIG_MODULE_SIG_ALL= \
+            _emodinst_
+          find $MODULES_INTERMEDIATES -type f -name '*.ko' -exec mv {} $OUT_MODULES \;
           cp -vf .config out/modules/
 
-          echo "=== built .ko list (MT_65: ttm/drm_buddy/drm_display_helper 포함 기대) ==="
-          ls -1 out/modules/*.ko | xargs -n1 basename || echo "[WARN] no .ko produced"
+          echo "=== 산출 .ko (strip됨, ttm/drm_buddy/drm_display_helper 포함 기대) ==="
+          ls -l out/modules/*.ko | awk '{print $5, $NF}'
 
           # thirdparty 경로(platform-DSM-KVER) 구성을 위해 host 커널 release 기록
           KVER=$(sed 's/[+-].*//' "$KLIB_BUILD/include/config/kernel.release" 2>/dev/null)
