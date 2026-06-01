@@ -51,8 +51,16 @@ jobs:
           echo "=== CPTCFG (ttm/buddy/display 활성 확인) ==="
           grep -E "^CPTCFG_(DRM=|DRM_I915=|DRM_TTM|DRM_BUDDY|DRM_DISPLAY|INTEL_GTT)" .config || echo "(해당 없음)"
 
-          make -j$(nproc) modules_copy
-          mkdir -p out/modules
+          # MT_65 표준 빌드(modules_copy 타겟 없음). 검증용이라 STRIP 생략(심볼 보존).
+          make -j$(nproc)
+          MODULES_INTERMEDIATES=$PWD/out/intermediates
+          OUT_MODULES=$PWD/out/modules
+          mkdir -p $OUT_MODULES
+          make -C $KLIB_BUILD M=$PWD \
+            INSTALL_MOD_PATH=$MODULES_INTERMEDIATES \
+            CONFIG_MODULE_SIG_ALL= \
+            _emodinst_
+          find $MODULES_INTERMEDIATES -type f -name '*.ko' -exec mv {} $OUT_MODULES \;
           cp -vf .config out/modules/
 
           echo "=== 산출 .ko 목록 (ttm/drm_buddy/drm_display_helper 포함 기대) ==="
