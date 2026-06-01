@@ -1,33 +1,43 @@
-name: "[util] dump host Module.symvers (geminilakenk 7.3)"
+name: "[util] dump host Module.symvers (mipi_dsi/dma_fence/intel_gmch 빌트인 점검)"
 
-# 빌드 없이 DSM 커널소스만 받아 host Module.symvers 를 아티팩트로 추출.
-# 로컬에서 파일럿 .ko export 심볼과 대조하여 중복 심볼 출처(vmlinux 빌트인 vs stock 모듈) 판별.
+# 빌드 없이 DSM 커널소스만 받아 host Module.symvers 에서 빌트인(vmlinux) 충돌 후보 심볼 점검.
+# geminilakenk 외 3개 플랫폼이 drm_mipi_dsi 등을 남겨도 되는지 판별.
 
 on:
   workflow_dispatch:
 
 jobs:
   dump:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { version: "7.3", platform: epyc7002 }
+          - { version: "7.3", platform: r1000nk }
+          - { version: "7.3", platform: v1000nk }
+          - { version: "7.3", platform: geminilakenk }
     runs-on: ubuntu-latest
     steps:
-      - name: Download kernel source (geminilakenk 7.3)
+      - name: Download kernel source
         run: |
-          dev_tarball=ds.geminilakenk-7.3.dev.txz
-          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/7.3/geminilakenk/$dev_tarball
+          dev_tarball=ds.${{ matrix.platform }}-${{ matrix.version }}.dev.txz
+          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$dev_tarball
           mkdir ksrc
           tar xf $dev_tarball -C ksrc
 
-      - name: Extract Module.symvers
+      - name: "Inspect host Module.symvers"
         run: |
-          SYMV=ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-7.3/build/Module.symvers
-          mkdir -p out
-          cp "$SYMV" out/Module.symvers
-          echo "lines: $(wc -l < out/Module.symvers)"
-          echo "=== module_path 컬럼 분포(상위) ==="
-          awk '{print $3}' out/Module.symvers | sort | uniq -c | sort -rn | head -20
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: host-symvers-geminilakenk-7.3
-          path: out/Module.symvers
+          SYMV=ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build/Module.symvers
+          echo "===== ${{ matrix.platform }}-${{ matrix.version }} ====="
+          if [[ ! -f "$SYMV" ]]; then echo "[WARN] Module.symvers 없음"; exit 0; fi
+          echo "총 심볼: $(wc -l < "$SYMV")"
+          echo "--- mipi_dsi 심볼 (vmlinux=빌트인충돌 / 모듈=교체) ---"
+          awk '$2 ~ /^mipi_dsi/ {print $3}' "$SYMV" | sort | uniq -c
+          echo "  (mipi_dsi 총 개수: $(awk '$2 ~ /^mipi_dsi/' "$SYMV" | wc -l))"
+          echo "--- dma_fence_signaled tracepoint ---"
+          grep -E "dma_fence_signaled" "$SYMV" | awk '{print $2, $3}' || echo "  (없음)"
+          echo "--- intel_gmch_probe/remove ---"
+          grep -E "intel_gmch_(probe|remove)" "$SYMV" | awk '{print $2, $3}' || echo "  (없음)"
+          echo "--- CONFIG_DRM / DMA_SHARED_BUFFER (.config) ---"
+          KC=$(dirname "$SYMV")/.config
+          grep -E "^CONFIG_DRM=|^# CONFIG_DRM is|^CONFIG_DMA_SHARED_BUFFER=|^# CONFIG_DMA_SHARED_BUFFER" "$KC" 2>/dev/null || echo "  (none)"
