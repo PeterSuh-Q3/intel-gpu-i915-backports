@@ -1,0 +1,40 @@
+name: "[PILOT-MT65] r1000nk i915 (hdmi compat 편입 검증)"
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: mainline-tracking-v6.5, fetch-depth: 1 }
+      - name: Download toolchain+kernel
+        run: |
+          for t in env dev; do
+            f=ds.r1000nk-7.3.$t.txz
+            wget -q https://global.synologydownload.com/download/ToolChain/toolkit/7.3/r1000nk/$f
+          done
+          mkdir toolchain ksrc
+          tar xf ds.r1000nk-7.3.env.txz -C toolchain
+          tar xf ds.r1000nk-7.3.dev.txz -C ksrc
+      - name: Build
+        run: |
+          export BACKPORT_DIR=$PWD
+          export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-7.3/build
+          export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
+          export KBUILD_MODPOST_WARN=1
+          # r1000nk host config 의존심볼 주입(i915 가시화)
+          HOSTCFG="$KLIB_BUILD/.config"
+          for s in CONFIG_I2C CONFIG_I2C_ALGOBIT CONFIG_DMA_SHARED_BUFFER CONFIG_FB_CMDLINE CONFIG_INTERVAL_TREE CONFIG_RELAY CONFIG_SHMEM CONFIG_TMPFS CONFIG_IRQ_WORK CONFIG_HAS_DMA; do
+            grep -q "^# ${s} is not set" "$HOSTCFG" && sed -i "s/^# ${s} is not set/${s}=y/" "$HOSTCFG" || ( grep -q "^${s}=" "$HOSTCFG" || echo "${s}=y" >> "$HOSTCFG" )
+          done
+          echo "=== host CONFIG_HDMI 상태 ==="; grep -E "^CONFIG_HDMI|^# CONFIG_HDMI" "$HOSTCFG" || echo "(CONFIG_HDMI 부재 → hdmi_5_10.o 편입 기대)"
+          make defconfig-drm
+          make -j$(nproc)
+          mkdir -p out/modules
+          make -C $KLIB_BUILD M=$PWD INSTALL_MOD_PATH=$PWD/out/im CONFIG_MODULE_SIG_ALL= _emodinst_
+          find $PWD/out/im -name '*.ko' -exec mv {} out/modules \;
+          echo "=== 산출 .ko ==="; ls -1 out/modules/*.ko | xargs -n1 basename
+          echo "=== i915-compat.ko 가 hdmi_infoframe 자체 export 하는가 ==="
+          nm out/modules/i915-compat.ko 2>/dev/null | grep -E "__ksymtab_hdmi_(avi_infoframe_init|infoframe_pack|drm_infoframe_init)" && echo "[OK] i915-compat 가 hdmi 자체제공 → hdmi.ko 불필요" || echo "[FAIL] hdmi 미포함"
+          echo "=== i915.ko 가 여전히 의존(U)하는 외부심볼(backlight/i2c/hdmi) ==="
+          nm out/modules/i915.ko 2>/dev/null | awk '$1=="U"{print $2}' | grep -iE "backlight|i2c_bit|hdmi_infoframe" | sort -u
