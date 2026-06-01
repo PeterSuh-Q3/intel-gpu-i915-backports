@@ -29,6 +29,16 @@ jobs:
           done
           echo "=== host CONFIG_HDMI 상태 ==="; grep -E "^CONFIG_HDMI|^# CONFIG_HDMI" "$HOSTCFG" || echo "(CONFIG_HDMI 부재 → hdmi_5_10.o 편입 기대)"
           make defconfig-drm
+          # 헤드리스(r1000nk/v1000nk): backlight + acpi_video 비활성 → i915 의존 제거(RR 방식)
+          echo "[OFF] backlight/acpi_video 비활성"
+          sed -i 's/^CPTCFG_BACKLIGHT_CLASS_DEVICE=.*/# CPTCFG_BACKLIGHT_CLASS_DEVICE is not set/' .config
+          sed -i 's/^CPTCFG_ACPI_VIDEO=.*/# CPTCFG_ACPI_VIDEO is not set/' .config 2>/dev/null || true
+          # host autoconf 의 CONFIG_ACPI_VIDEO 도 끄기(i915 IS_ENABLED 가드용)
+          for f in "$KLIB_BUILD/.config" "$KLIB_BUILD/include/generated/autoconf.h" "$KLIB_BUILD/include/config/auto.conf"; do
+            [ -f "$f" ] && sed -i -E 's/^(CONFIG_ACPI_VIDEO=.*)/# CONFIG_ACPI_VIDEO is not set/; /#define CONFIG_ACPI_VIDEO /d' "$f"
+          done
+          make olddefconfig
+          echo "[chk] $(grep -E 'CPTCFG_BACKLIGHT_CLASS_DEVICE|CPTCFG_ACPI_VIDEO' .config || echo backlight/acpi off)"
           make -j$(nproc)
           mkdir -p out/modules
           make -C $KLIB_BUILD M=$PWD INSTALL_MOD_PATH=$PWD/out/im CONFIG_MODULE_SIG_ALL= _emodinst_
