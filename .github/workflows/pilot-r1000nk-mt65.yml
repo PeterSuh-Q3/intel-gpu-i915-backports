@@ -30,11 +30,23 @@ jobs:
           echo "=== host CONFIG_HDMI 상태 ==="; grep -E "^CONFIG_HDMI|^# CONFIG_HDMI" "$HOSTCFG" || echo "(CONFIG_HDMI 부재 → hdmi_5_10.o 편입 기대)"
           make defconfig-drm
           # 헤드리스(r1000nk/v1000nk): backlight + acpi_video 의존 제거(RR 방식).
-          # config 가 host 동적노출이라 .config off 가 안 먹힘 → 컴파일 단계에서 매크로 직접 해제.
-          # i915/drm_dp_helper 의 IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)/(CONFIG_ACPI_VIDEO) → 거짓.
-          KOFF="-UCONFIG_BACKLIGHT_CLASS_DEVICE -UCONFIG_BACKLIGHT_CLASS_DEVICE_MODULE -UCONFIG_ACPI_VIDEO -UCONFIG_ACPI_VIDEO_MODULE"
-          echo "[OFF] KCPPFLAGS=$KOFF"
-          make -j$(nproc) KCPPFLAGS="$KOFF"
+          # IS_ENABLED 가드는 autoconf.h 의 #define 으로 결정 → backport+host autoconf 에서 직접 제거.
+          # (gcc 는 -include 를 -U 뒤에 처리하므로 KCPPFLAGS -U 는 무효 → autoconf 직접 편집)
+          echo "[OFF] backlight/acpi_video autoconf 매크로 제거"
+          for AC in backport-include/backport/autoconf.h "$KLIB_BUILD/include/generated/autoconf.h"; do
+            if [ -f "$AC" ]; then
+              b=$(grep -cE "CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)" "$AC")
+              sed -i -E '/#define CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)(_MODULE)? /d' "$AC"
+              a=$(grep -cE "CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)" "$AC")
+              echo "  $AC : $b → $a"
+            fi
+          done
+          for f in "$KLIB_BUILD/.config" "$KLIB_BUILD/include/config/auto.conf"; do
+            [ -f "$f" ] && sed -i -E '/^CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)(=|_MODULE=)/d' "$f"
+          done
+          # olddefconfig 생략(autoconf 직접 수정 보존). make 가 재생성하지 않도록 autoconf 를 최신 타임스탬프로.
+          touch backport-include/backport/autoconf.h 2>/dev/null || true
+          make -j$(nproc)
           mkdir -p out/modules
           make -C $KLIB_BUILD M=$PWD INSTALL_MOD_PATH=$PWD/out/im CONFIG_MODULE_SIG_ALL= _emodinst_
           find $PWD/out/im -name '*.ko' -exec mv {} out/modules \;
