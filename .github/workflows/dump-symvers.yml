@@ -38,6 +38,10 @@ jobs:
           grep -E "dma_fence_signaled" "$SYMV" | awk '{print $2, $3}' || echo "  (없음)"
           echo "--- intel_gmch_probe/remove ---"
           grep -E "intel_gmch_(probe|remove)" "$SYMV" | awk '{print $2, $3}' || echo "  (없음)"
+          echo "--- hdmi infoframe 심볼 (vmlinux=빌트인→hdmi.ko 불필요) ---"
+          grep -E "\<hdmi_(avi_infoframe_init|drm_infoframe_init|infoframe_pack|infoframe_unpack)\>" "$SYMV" | awk '{print $2, $3}' || echo "  (없음 → hdmi.ko 필요)"
+          echo "--- backlight 심볼 (vmlinux/모듈=공급가능 / 없음=backlight.ko 필요) ---"
+          grep -E "\<(devm_backlight_device_register|backlight_device_register)\>" "$SYMV" | awk '{print $2, $3}' || echo "  (없음 → backlight.ko 필요)"
           echo "--- CONFIG_DRM / DMA_SHARED_BUFFER (.config) ---"
           KC=$(dirname "$SYMV")/.config
           grep -E "^CONFIG_DRM=|^# CONFIG_DRM is|^CONFIG_DMA_SHARED_BUFFER=|^# CONFIG_DMA_SHARED_BUFFER" "$KC" 2>/dev/null || echo "  (none)"
