@@ -71,7 +71,18 @@ jobs:
           # drm_mipi_dsi.ko: i915 비의존 고아모듈 + mipi_dsi_* 빌트인 충돌 → 산출 제외
           rm -fv "$OUT_MODULES/drm_mipi_dsi.ko"
 
-          echo "=== 산출 .ko 목록 (drm_mipi_dsi 제외, ttm/drm_buddy/drm_display_helper 포함 기대) ==="
+          # i2c-algo-bit.ko: backport 트리에 소스 없음(host 커널 트리에만 존재).
+          # i915 가 i2c_bit_algo(geminilakenk stock 모듈 심볼) 의존 → host 커널 트리에서 OOT 빌드해 자체 제공(RR 방식).
+          echo "[i2c-algo-bit] host 커널 트리에서 OOT 빌드"
+          if [[ -f "$KLIB_BUILD/drivers/i2c/algos/i2c-algo-bit.c" ]]; then
+            make -C "$KLIB_BUILD" M="$KLIB_BUILD/drivers/i2c/algos" modules CONFIG_I2C_ALGOBIT=m \
+              && cp -v "$KLIB_BUILD/drivers/i2c/algos/i2c-algo-bit.ko" "$OUT_MODULES/" \
+              && echo "[OK] i2c-algo-bit.ko 추가" || echo "[WARN] i2c-algo-bit 빌드/복사 실패"
+          else
+            echo "[WARN] host 트리에 i2c-algo-bit.c 없음: $KLIB_BUILD/drivers/i2c/algos/"
+          fi
+
+          echo "=== 산출 .ko 목록 (drm_mipi_dsi 제외, i2c-algo-bit 추가, 11개 기대) ==="
           ls -1 out/modules/*.ko | xargs -n1 basename
 
       - name: "[VERIFY] 충돌 심볼 사전 점검"
