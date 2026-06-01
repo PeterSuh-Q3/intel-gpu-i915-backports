@@ -35,10 +35,10 @@ jobs:
           echo "[OFF] backlight/acpi_video autoconf 매크로 제거"
           for AC in backport-include/backport/autoconf.h "$KLIB_BUILD/include/generated/autoconf.h"; do
             if [ -f "$AC" ]; then
-              b=$(grep -cE "CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)" "$AC")
+              b=$(grep -cE "CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)" "$AC" || true)
               sed -i -E '/#define CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)(_MODULE)? /d' "$AC"
-              a=$(grep -cE "CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)" "$AC")
-              echo "  $AC : $b → $a"
+              a=$(grep -cE "CONFIG_(BACKLIGHT_CLASS_DEVICE|ACPI_VIDEO)" "$AC" || true)
+              echo "  $AC : ${b:-0} → ${a:-0}"
             fi
           done
           for f in "$KLIB_BUILD/.config" "$KLIB_BUILD/include/config/auto.conf"; do
