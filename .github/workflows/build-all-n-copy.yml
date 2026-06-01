@@ -137,19 +137,32 @@ jobs:
     if: ${{ needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout mshell-modules (private)
+      - name: Check PAT (fork 환경 가드)
+        id: pat
+        run: |
+          if [ -n "${{ secrets.PERSONAL_ACCESS_TOKEN }}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PERSONAL_ACCESS_TOKEN 미설정 → mshell-modules 동기화 스킵 (fork 환경: 빌드 산출물만 artifact 로 제공)"
+          fi
+
+      - name: Checkout mshell-modules
+        if: steps.pat.outputs.present == 'true'
         uses: actions/checkout@v4
         with:
-          repository: PeterSuh-Q3/mshell-modules
+          repository: ${{ github.repository_owner }}/mshell-modules
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           path: mshell-modules
 
       - name: Download all build artifacts
+        if: steps.pat.outputs.present == 'true'
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
       - name: Copy modules into thirdparty/<platform>-<DSM>-<KVER>/
+        if: steps.pat.outputs.present == 'true'
         run: |
           shopt -s nullglob
           copied=0
@@ -174,6 +187,7 @@ jobs:
           echo "total dirs copied: ${copied}"
 
       - name: Commit & push to mshell-modules
+        if: steps.pat.outputs.present == 'true'
         working-directory: mshell-modules
         run: |
           git config user.name  "github-actions[bot]"
