@@ -33,16 +33,16 @@ jobs:
       - name: Download toolchain
         run: |
           env_tarball=ds.${{ matrix.platform }}-${{ matrix.version }}.env.txz
-          [ -f "$env_tarball" ] || wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$env_tarball
+          if [ -f "$env_tarball" ]; then echo "[cache] $env_tarball 존재 → wget 생략"; else echo "[download] $env_tarball"; wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$env_tarball; fi
           mkdir toolchain
-          tar xf $env_tarball -C toolchain
+          echo "[extract] tar 해제 시작 $(date +%T)"; tar xf $env_tarball -C toolchain; echo "[extract] tar 해제 완료 $(date +%T)"
 
       - name: Download kernel source
         run: |
           dev_tarball=ds.${{ matrix.platform }}-${{ matrix.version }}.dev.txz
-          [ -f "$dev_tarball" ] || wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$dev_tarball
+          if [ -f "$dev_tarball" ]; then echo "[cache] $dev_tarball 존재 → wget 생략"; else echo "[download] $dev_tarball"; wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$dev_tarball; fi
           mkdir ksrc
-          tar xf $dev_tarball -C ksrc
+          echo "[extract] tar 해제 시작 $(date +%T)"; tar xf $dev_tarball -C ksrc; echo "[extract] tar 해제 완료 $(date +%T)"
 
       - name: Build (MT_65 + geminilakenk tracepoint patch)
         run: |
