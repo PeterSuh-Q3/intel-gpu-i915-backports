@@ -36,5 +36,19 @@ jobs:
           echo "=== 산출 .ko ==="; ls -1 out/modules/*.ko | xargs -n1 basename
           echo "=== i915-compat.ko 가 hdmi_infoframe 자체 export 하는가 ==="
           nm out/modules/i915-compat.ko 2>/dev/null | grep -E "__ksymtab_hdmi_(avi_infoframe_init|infoframe_pack|drm_infoframe_init)" && echo "[OK] i915-compat 가 hdmi 자체제공 → hdmi.ko 불필요" || echo "[FAIL] hdmi 미포함"
-          echo "=== i915.ko 가 여전히 의존(U)하는 외부심볼(backlight/i2c/hdmi) ==="
-          nm out/modules/i915.ko 2>/dev/null | awk '$1=="U"{print $2}' | grep -iE "backlight|i2c_bit|hdmi_infoframe" | sort -u
+          echo "=== ★ i915.ko 외부의존 전수 점검 (커널 Module.symvers / 산출 .ko 대조) ==="
+          SYMV="$KLIB_BUILD/Module.symvers"
+          # 커널이 제공(빌트인/stock모듈)하는 심볼 + 출처
+          awk '{print $2}' "$SYMV" 2>/dev/null | sort -u > /tmp/kern.txt
+          # backport 산출 .ko 가 export 하는 심볼
+          for ko in out/modules/*.ko; do nm "$ko" 2>/dev/null | grep -oE '__ksymtab_[A-Za-z0-9_]+' | sed 's/__ksymtab_//'; done | sort -u > /tmp/prov.txt
+          # i915.ko 의 undefined 심볼
+          nm out/modules/i915.ko 2>/dev/null | awk '$1=="U"{print $2}' | sort -u > /tmp/i915u.txt
+          echo "--- (A) 커널(stock/빌트인)이 제공 → 선적재로 해결 가능한 i915 외부의존 + 출처모듈 ---"
+          comm -23 <(comm -23 /tmp/i915u.txt /tmp/prov.txt) <(cat /dev/null) | while read s; do
+            src=$(awk -v x="$s" '$2==x{print $3; exit}' "$SYMV")
+            [ -n "$src" ] && echo "  $s  <=  $src"
+          done | grep -vE "<=  vmlinux$" | sort -u
+          echo "--- (B) ★ 어디서도 제공 안 됨 (커널+산출 모두 없음 → 추가 조치 필요) ---"
+          comm -23 /tmp/i915u.txt <(cat /tmp/kern.txt /tmp/prov.txt | sort -u)
+          echo "--- (C) i915 외부의존 중 vmlinux 빌트인(자동 해결) 개수: $(comm -12 /tmp/i915u.txt /tmp/kern.txt | wc -l) ---"
