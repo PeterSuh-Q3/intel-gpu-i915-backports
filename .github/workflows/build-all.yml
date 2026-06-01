@@ -46,26 +46,56 @@ jobs:
             grep -E "CONFIG_DRM|CONFIG_AGP|CONFIG_FB" "$KCONFIG" || echo "[INFO] No DRM symbols found"
           fi
 
+          echo ""
+          echo "=== backport DRM/i915 dependency symbols in host kernel ==="
+          # CPTCFG_DRM / CPTCFG_DRM_I915 가 Kconfig depends 로 요구하는 host 심볼.
+          # 누락(# ... is not set)이면 CPTCFG_DRM_I915 가 비가시화되어 i915 미빌드.
+          if [[ -f "$KCONFIG" ]]; then
+            for s in CONFIG_I2C CONFIG_I2C_ALGOBIT CONFIG_DMA_SHARED_BUFFER \
+                     CONFIG_FB_CMDLINE CONFIG_INTERVAL_TREE CONFIG_RELAY \
+                     CONFIG_SHMEM CONFIG_TMPFS CONFIG_IRQ_WORK CONFIG_HAS_DMA; do
+              echo "  $(grep -E "^${s}=|^# ${s} is not set" "$KCONFIG" 2>/dev/null || echo "${s} → (absent)")"
+            done
+          fi
+
       - name: Build
         run: |
           export BACKPORT_DIR=$PWD
           export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
           export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
 
-          make defconfig-drm                
-          
-          # ── r1000nk / v1000nk: drm_i915 대신사용 ──────────
+          # ── r1000nk / v1000nk: host kernel .config 에 backport DRM/i915 의존 심볼 주입 ──
+          # 근본원인: patch_config.sh 는 backport .config 를 고치지만, CPTCFG_DRM_I915 의
+          # 가시성은 host kernel .config(KLIB_BUILD/.config) 의 depends 심볼이 결정한다.
+          # host 에 누락되면 make 의 kconfig 재동기화가 CPTCFG_DRM_I915 를 비가시화 →
+          # i915 미빌드(dmabuf/compat 만 생성). epyc7002/geminilakenk host 엔 이미 존재.
+          # → defconfig-drm 실행 전에 host .config 에 의존 심볼을 주입한다.
           if [[ "${{ matrix.platform }}" == "r1000nk" || "${{ matrix.platform }}" == "v1000nk" ]]; then
-            # r1000nk: DRM/i915 항목 강제 주입
-            bash patch_config.sh
-            
-            # autoconf.h 재생성 (이 단계가 없으면 패치가 헤더에 반영 안 됨)
-            # olddefconfig 대신 autoconf.h만 직접 재생성
-            # (olddefconfig는 Kconfig depends 재평가로 패치를 되돌림)
-            make backport-include/backport/autoconf.h
+            HOSTCFG="$KLIB_BUILD/.config"
+            echo "[INJECT] backport DRM/i915 deps into host config: $HOSTCFG"
+            for s in CONFIG_I2C CONFIG_I2C_ALGOBIT CONFIG_DMA_SHARED_BUFFER \
+                     CONFIG_FB_CMDLINE CONFIG_INTERVAL_TREE CONFIG_RELAY \
+                     CONFIG_SHMEM CONFIG_TMPFS CONFIG_IRQ_WORK CONFIG_HAS_DMA; do
+              if grep -q "^# ${s} is not set" "$HOSTCFG" 2>/dev/null; then
+                sed -i "s/^# ${s} is not set/${s}=y/" "$HOSTCFG"
+                echo "  [ENABLED] ${s}=y"
+              elif ! grep -q "^${s}=" "$HOSTCFG" 2>/dev/null; then
+                echo "${s}=y" >> "$HOSTCFG"
+                echo "  [ADDED]   ${s}=y"
+              else
+                echo "  [OK]      $(grep "^${s}=" "$HOSTCFG")"
+              fi
+            done
           fi
           # ──────────────────────────────────────────────────────────────
-    
+
+          make defconfig-drm
+
+          # [VERIFY] defconfig 결과에 i915/DRM 활성 여부 (epyc 와 동일해야 정상)
+          echo "=== CPTCFG_DRM* after defconfig-drm ==="
+          grep -E "^CPTCFG_(DRM|DRM_I915|INTEL_GTT|DRM_KMS_HELPER|DRM_MIPI_DSI)=" .config \
+            || echo "[WARN] CPTCFG_DRM* not enabled — i915 will be skipped"
+
           make -j$(nproc) modules_copy
           mkdir -p out/modules
           cp -vf .config out/modules/
