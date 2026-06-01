@@ -105,6 +105,17 @@ jobs:
             else
               echo "[OK] EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled) 제거됨"
             fi
+
+            # intel_gmch_probe/remove EXPORT 제거: geminilakenk 커널이 intel-gtt 를 빌트인(vmlinux)으로
+            # export → 우리 intel-gtt.ko 와 중복 → i915 의존 적재 차단. EXPORT 만 제거(intel-gtt.ko 는
+            # 나머지 intel_gmch_* 6개 제공 위해 유지). i915 는 이 2개를 커널 빌트인에서 가져옴.
+            echo "[PATCH] geminilakenk: drop EXPORT_SYMBOL(intel_gmch_probe/remove)"
+            sed -i '/^EXPORT_SYMBOL(intel_gmch_probe);/d; /^EXPORT_SYMBOL(intel_gmch_remove);/d' drivers/char/agp/intel-gtt.c
+            if grep -qE "^EXPORT_SYMBOL\(intel_gmch_(probe|remove)\);" drivers/char/agp/intel-gtt.c; then
+              echo "[WARN] intel_gmch EXPORT 제거 실패"; exit 1
+            else
+              echo "[OK] intel_gmch_probe/remove EXPORT 제거됨"
+            fi
           fi
 
           make defconfig-drm
@@ -124,6 +135,12 @@ jobs:
             _emodinst_
           find $MODULES_INTERMEDIATES -type f -name '*.ko' -exec mv {} $OUT_MODULES \;
           cp -vf .config out/modules/
+
+          # geminilakenk: drm_mipi_dsi.ko 는 i915 스택이 의존 안 하는 고아 모듈인데 mipi_dsi_* 39개가
+          # 커널 빌트인과 충돌 → 산출에서 제외(RR 도 미포함). 다른 플랫폼은 유지.
+          if [[ "${{ matrix.platform }}" == "geminilakenk" ]]; then
+            rm -fv "$OUT_MODULES/drm_mipi_dsi.ko"
+          fi
 
           echo "=== 산출 .ko (strip됨, ttm/drm_buddy/drm_display_helper 포함 기대) ==="
           ls -l out/modules/*.ko | awk '{print $5, $NF}'
