@@ -20,18 +20,27 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: mainline-tracking-v6.5
+          fetch-depth: 1
+
+      - name: Cache toolkit tarballs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ds.${{ matrix.platform }}-${{ matrix.version }}.env.txz
+            ds.${{ matrix.platform }}-${{ matrix.version }}.dev.txz
+          key: toolkit-${{ matrix.platform }}-${{ matrix.version }}
 
       - name: Download toolchain
         run: |
           env_tarball=ds.${{ matrix.platform }}-${{ matrix.version }}.env.txz
-          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$env_tarball
+          [ -f "$env_tarball" ] || wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$env_tarball
           mkdir toolchain
           tar xf $env_tarball -C toolchain
 
       - name: Download kernel source
         run: |
           dev_tarball=ds.${{ matrix.platform }}-${{ matrix.version }}.dev.txz
-          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$dev_tarball
+          [ -f "$dev_tarball" ] || wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$dev_tarball
           mkdir ksrc
           tar xf $dev_tarball -C ksrc
 
