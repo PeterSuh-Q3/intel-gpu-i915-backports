@@ -1,0 +1,96 @@
+name: "[PILOT-MT65] geminilakenk i915 (v6.5 base, ttm/buddy/display)"
+
+# 2차 파일럿: MT_65 신형 베이스(mainline-tracking-v6.5) 소스를 geminilakenk 7.3 으로 빌드.
+# 검증: (1) ttm/drm_buddy/drm_display_helper 포함 11개 산출, (2) dma_fence_signaled tracepoint
+# export 제거, (3) 신형 모듈 export 심볼 ∩ host 커널 Module.symvers (새 duplicate 충돌 사전탐지).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { version: "7.3", platform: geminilakenk }
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (MT_65 v6.5 base source)
+        uses: actions/checkout@v4
+        with:
+          ref: mainline-tracking-v6.5
+
+      - name: Download toolchain
+        run: |
+          env_tarball=ds.${{ matrix.platform }}-${{ matrix.version }}.env.txz
+          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$env_tarball
+          mkdir toolchain
+          tar xf $env_tarball -C toolchain
+
+      - name: Download kernel source
+        run: |
+          dev_tarball=ds.${{ matrix.platform }}-${{ matrix.version }}.dev.txz
+          wget -q https://global.synologydownload.com/download/ToolChain/toolkit/${{ matrix.version }}/${{ matrix.platform }}/$dev_tarball
+          mkdir ksrc
+          tar xf $dev_tarball -C ksrc
+
+      - name: Build (MT_65 + geminilakenk tracepoint patch)
+        run: |
+          export BACKPORT_DIR=$PWD
+          export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
+          export CROSS_COMPILE=$PWD/toolchain/usr/local/x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu-
+          export KBUILD_MODPOST_WARN=1
+
+          echo "[PATCH] geminilakenk: drop EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled)"
+          sed -i '/^EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled);/d' drivers/dma-buf/dma-fence.c
+          grep -q "^EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled);" drivers/dma-buf/dma-fence.c \
+            && { echo "[WARN] 제거 실패"; exit 1; } || echo "[OK] 제거됨"
+
+          make defconfig-drm
+          echo "=== CPTCFG (ttm/buddy/display 활성 확인) ==="
+          grep -E "^CPTCFG_(DRM=|DRM_I915=|DRM_TTM|DRM_BUDDY|DRM_DISPLAY|INTEL_GTT)" .config || echo "(해당 없음)"
+
+          make -j$(nproc) modules_copy
+          mkdir -p out/modules
+          cp -vf .config out/modules/
+
+          echo "=== 산출 .ko 목록 (ttm/drm_buddy/drm_display_helper 포함 기대) ==="
+          ls -1 out/modules/*.ko | xargs -n1 basename
+
+      - name: "[VERIFY] 충돌 심볼 사전 점검"
+        run: |
+          export KLIB_BUILD=$PWD/ksrc/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${{ matrix.version }}/build
+          SYMV="$KLIB_BUILD/Module.symvers"
+          echo "=== (1) dmabuf.ko dma_fence_signaled tracepoint export (없어야 정상) ==="
+          nm out/modules/dmabuf.ko 2>/dev/null | grep -E "__ksymtab_.*dma_fence_signaled" \
+            && echo "[FAIL] 여전히 export" || echo "[OK] 제거 확인"
+
+          echo "=== (2) 신형 모듈 export ∩ host 커널 Module.symvers (런타임 duplicate 충돌 후보) ==="
+          if [[ ! -f "$SYMV" ]]; then echo "[WARN] host Module.symvers 없음: $SYMV"; exit 0; fi
+          # host 커널이 export 하는 심볼 집합
+          awk '{print $2}' "$SYMV" 2>/dev/null | sort -u > /tmp/host_syms.txt
+          total=0
+          for ko in out/modules/*.ko; do
+            name=$(basename "$ko")
+            # 이 .ko 가 export(__ksymtab_) 하는 심볼
+            nm "$ko" 2>/dev/null | grep -oE '__ksymtab_[A-Za-z0-9_]+' | sed 's/__ksymtab_//' | sort -u > /tmp/ko_exp.txt
+            dup=$(comm -12 /tmp/ko_exp.txt /tmp/host_syms.txt)
+            if [[ -n "$dup" ]]; then
+              cnt=$(echo "$dup" | grep -c .)
+              echo "  [DUP] $name : $cnt 개 커널과 중복 export →"
+              echo "$dup" | sed 's/^/        /'
+              total=$((total+cnt))
+            fi
+          done
+          echo "=== 중복 export 총계: ${total} (0 이면 추가 충돌 없음) ==="
+
+      - name: Pack
+        working-directory: out
+        run: zip -r pilot_mt65_${{ matrix.version }}_${{ matrix.platform }}.zip modules
+
+      - name: Save artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilot_mt65_${{ matrix.version }}_${{ matrix.platform }}
+          path: out/pilot_mt65_${{ matrix.version }}_${{ matrix.platform }}.zip
