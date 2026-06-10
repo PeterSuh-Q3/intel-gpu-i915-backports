@@ -72,9 +72,10 @@ jobs:
           echo "=== CPTCFG (i915 + amdgpu 활성 확인) ==="
           grep -E "^CPTCFG_(DRM=|DRM_I915=|DRM_TTM|DRM_SCHED|DRM_AMDGPU)" .config || echo "(해당 없음)"
 
-          make -j$(nproc) 2>&1 | tee /tmp/build.log || true
-          echo "=== 빌드 로그 마지막 100줄 ==="
-          tail -100 /tmp/build.log
+          make -j$(nproc) 2>&1 | tee /tmp/build.log
+          BUILD_RC=${PIPESTATUS[0]}
+          echo "=== 빌드 로그 마지막 50줄 ==="
+          tail -50 /tmp/build.log
 
           MODULES_INTERMEDIATES=$PWD/out/intermediates
           OUT_MODULES=$PWD/out/modules
@@ -83,19 +84,21 @@ jobs:
           make -C $KLIB_BUILD M=$PWD \
             INSTALL_MOD_PATH=$MODULES_INTERMEDIATES \
             CONFIG_MODULE_SIG_ALL= \
-            _emodinst_ 2>&1 | tail -20 || true
+            _emodinst_
 
-          find $MODULES_INTERMEDIATES -type f -name '*.ko' -exec mv {} $OUT_MODULES \; 2>/dev/null || true
-          cp -vf .config out/modules/ 2>/dev/null || true
+          find $MODULES_INTERMEDIATES -type f -name '*.ko' -exec mv {} $OUT_MODULES \;
+          cp -vf .config out/modules/
 
           # drm_mipi_dsi.ko: 고아모듈 제외
           rm -fv "$OUT_MODULES/drm_mipi_dsi.ko" 2>/dev/null || true
 
           echo "=== 산출 .ko 목록 ==="
-          ls -1 out/modules/*.ko 2>/dev/null | xargs -n1 basename || echo "(모듈 없음)"
-          echo "=== 빌드 오류 요약 ==="
-          grep -c "error:" /tmp/build.log || true
-          echo "개 컴파일 에러"
+          ls -1 out/modules/*.ko | xargs -n1 basename
+
+          if [[ $BUILD_RC -ne 0 ]]; then
+            echo "::error::빌드 실패 (exit $BUILD_RC)"
+            exit $BUILD_RC
+          fi
 
       - name: "[VERIFY] 충돌 심볼 사전 점검"
         run: |
