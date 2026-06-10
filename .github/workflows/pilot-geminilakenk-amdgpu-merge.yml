@@ -83,6 +83,7 @@ jobs:
 
           make -C $KLIB_BUILD M=$PWD \
             INSTALL_MOD_PATH=$MODULES_INTERMEDIATES \
+            INSTALL_MOD_STRIP=1 \
             CONFIG_MODULE_SIG_ALL= \
             _emodinst_
 
