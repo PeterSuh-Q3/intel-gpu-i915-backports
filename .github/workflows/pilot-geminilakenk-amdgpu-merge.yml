@@ -69,10 +69,15 @@ jobs:
             && { echo "[WARN] intel_gmch 제거 실패"; exit 1; } || echo "[OK]"
 
           make defconfig-drm
+
           echo "=== CPTCFG (i915 + amdgpu 활성 확인) ==="
           grep -E "^CPTCFG_(DRM=|DRM_I915=|DRM_TTM|DRM_SCHED|DRM_AMDGPU)" .config || echo "(해당 없음)"
 
-          make -j$(nproc) 2>&1 | tee /tmp/build.log
+          # geminilakenk: host kernel has CONFIG_HDMI=y built-in, so the
+          # external hdmi_video.ko would export duplicate symbols and block
+          # the i915/amdgpu modprobe chain. BUILD_CONFIG=nohdmi makes the
+          # backport updateconfig hook disable CPTCFG_HDMI before building.
+          make -j$(nproc) BUILD_CONFIG=nohdmi 2>&1 | tee /tmp/build.log
           BUILD_RC=${PIPESTATUS[0]}
           echo "=== 빌드 로그 마지막 50줄 ==="
           tail -50 /tmp/build.log
