@@ -1,9 +1,10 @@
-name: "[2차] Build i915 (MT_65 v6.5 base) + copy to mshell-modules"
+name: "[ALL] Build i915+amdgpu (feature/amdgpu-merge) + copy to mshell-modules"
 
-# build-all-n-copy.yml 과 동일하되, 소스를 MT_65 신형 베이스(mainline-tracking-v6.5)로
-# 체크아웃하여 빌드한다(B 방법). 워크플로우 정의는 redhat/main-epyc7002 에서 읽지만
-# 워킹트리(빌드 소스)는 mainline-tracking-v6.5 전체 → i915 + ttm + drm_buddy + drm_display_helper.
-# thirdparty 경로는 1차와 동일(platform-DSM-KVER) — overwrite 가 의도된 동작.
+# 소스를 amdgpu 병합 브랜치(feature/amdgpu-merge)에서 체크아웃하여 빌드한다.
+# 워크플로우 정의·빌드 소스 모두 feature/amdgpu-merge 단일 브랜치만 사용.
+# 산출물: i915 + amdgpu + gpu-sched + ttm + drm/buddy/display_helper + (hdmi_video).
+# geminilakenk 는 host 가 CONFIG_HDMI=y 라 BUILD_CONFIG=nohdmi 로 hdmi_video 제외.
+# thirdparty 경로는 platform-DSM-KVER — overwrite 가 의도된 동작.
 
 on:
   workflow_dispatch:
@@ -25,10 +26,10 @@ jobs:
           - { version: "7.3", platform: v1000nk }
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (MT_65 v6.5 base source)
+      - name: Checkout (feature/amdgpu-merge source)
         uses: actions/checkout@v4
         with:
-          ref: mainline-tracking-v6.5
+          ref: feature/amdgpu-merge
           fetch-depth: 1
 
       # toolkit tarball(env/dev .txz) 캐시 — 반복 run 에서 synologydownload 재다운로드 회피.
@@ -147,8 +148,13 @@ jobs:
             fi
           fi
 
-          # MT_65 표준 빌드(modules_copy 타겟 없음). 배포용이므로 INSTALL_MOD_STRIP=1 로 strip.
-          make -j$(nproc)
+          # 배포용 빌드. INSTALL_MOD_STRIP=1 로 strip.
+          # geminilakenk: host 가 CONFIG_HDMI=y 빌트인 → hdmi_video.ko 중복심볼로 i915/amdgpu
+          # 적재 차단. BUILD_CONFIG=nohdmi 로 updateconfig 훅이 CPTCFG_HDMI 비활성.
+          # epyc7002/r1000nk/v1000nk(host CONFIG_HDMI=n)는 hdmi_video.ko 외부모듈로 포함.
+          HDMI_OPT=""
+          if [[ "${{ matrix.platform }}" == "geminilakenk" ]]; then HDMI_OPT="BUILD_CONFIG=nohdmi"; fi
+          make -j$(nproc) $HDMI_OPT
           MODULES_INTERMEDIATES=$PWD/out/intermediates
           OUT_MODULES=$PWD/out/modules
           mkdir -p $OUT_MODULES
